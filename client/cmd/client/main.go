@@ -67,7 +67,7 @@ func main() {
 		case "/rooms":
 			msg.Header.Type = protocol.Rooms
 		case "/room":
-			msg.Header.Type = protocol.Room
+			msg.Header.Type = protocol.JoinRoom
 		case "/leave":
 			msg.Header.Type = protocol.Leave
 		case "/quit":
