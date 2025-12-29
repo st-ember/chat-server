@@ -26,7 +26,7 @@ func NewDB(connString string) (*DB, error) {
 }
 
 func (db *DB) SaveUser(user *dm.User) error {
-	_, err := db.conn.Exec("INSERT INTO users (id, nickname, remote_addr) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET nickname = EXCLUDED.nickname, remote_addr = EXCLUDED.remote_addr", user.ID, user.Nickname, user.RemoteAddr)
+	_, err := db.conn.Exec("INSERT INTO users (id, nick_name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET nick_name = EXCLUDED.nick_name", user.ID, user.Nickname)
 	if err != nil {
 		return fmt.Errorf("error saving user: %w", err)
 	}
@@ -35,28 +35,14 @@ func (db *DB) SaveUser(user *dm.User) error {
 }
 
 func (db *DB) GetUserByID(id uuid.UUID) (*dm.User, error) {
-	row := db.conn.QueryRow("SELECT id, nickname, remote_addr FROM users WHERE id = $1", id)
+	row := db.conn.QueryRow("SELECT id, nick_name FROM users WHERE id = $1", id)
 
 	user := &dm.User{}
-	if err := row.Scan(&user.ID, &user.Nickname, &user.RemoteAddr); err != nil {
+	if err := row.Scan(&user.ID, &user.Nickname); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("error getting user by ID: %w", err)
-	}
-
-	return user, nil
-}
-
-func (db *DB) GetUserByRemoteAddr(remoteAddr string) (*dm.User, error) {
-	row := db.conn.QueryRow("SELECT id, nickname, remote_addr FROM users WHERE remote_addr = $1", remoteAddr)
-
-	user := &dm.User{}
-	if err := row.Scan(&user.ID, &user.Nickname, &user.RemoteAddr); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("error getting user by remote address: %w", err)
 	}
 
 	return user, nil
@@ -91,7 +77,10 @@ func (db *DB) ListRooms() ([]*dm.Room, error) {
 }
 
 func (db *DB) SaveMessage(message *dm.Message) error {
-	_, err := db.conn.Exec("INSERT INTO messages (id, user_id, room_id, content) VALUES ($1, $2, $3, $4)", message.ID, message.UserID, message.RoomID, message.Content)
+	_, err := db.conn.Exec(
+		"INSERT INTO messages (id, user_id, room_id, content, timestamp) VALUES ($1, $2, $3, $4)",
+		message.ID, message.UserID, message.RoomID, message.Content, message.Timestamp,
+	)
 	if err != nil {
 		return fmt.Errorf("error saving message: %w", err)
 	}
@@ -100,7 +89,10 @@ func (db *DB) SaveMessage(message *dm.Message) error {
 }
 
 func (db *DB) ListMessagesByRoom(roomID uuid.UUID, limit int) ([]*dm.Message, error) {
-	rows, err := db.conn.Query("SELECT id, user_id, room_id, content FROM messages WHERE room_id = $1 ORDER BY id DESC LIMIT $2", roomID, limit)
+	rows, err := db.conn.Query(
+		"SELECT id, user_id, room_id, content FROM messages WHERE room_id = $1 ORDER BY id DESC LIMIT $2",
+		roomID, limit,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error listing messages by room: %w", err)
 	}

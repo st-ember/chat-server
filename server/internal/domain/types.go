@@ -1,11 +1,14 @@
 package domain
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type User struct {
-	ID         uuid.UUID
-	Nickname   string
-	RemoteAddr string
+	ID       uuid.UUID
+	Nickname string
 }
 
 type Room struct {
@@ -18,5 +21,5 @@ type Message struct {
 	RoomID    uuid.UUID
 	UserID    uuid.UUID
 	Content   string
-	Timestamp int64
+	Timestamp time.Time
 }

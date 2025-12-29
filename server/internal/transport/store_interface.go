@@ -14,7 +14,6 @@ type Store interface {
 type UserStore interface {
 	SaveUser(user *dm.User) error
 	GetUserByID(id uuid.UUID) (*dm.User, error)
-	GetUserByRemoteAddr(remoteAddr string) (*dm.User, error)
 }
 
 type RoomStore interface {

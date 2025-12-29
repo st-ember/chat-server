@@ -94,19 +94,52 @@ func (s *Server) cmdLoop() {
 		cmd := <-s.cmdCh
 		switch cmd.cmdType {
 		case createRoomCmd:
-			room := NewRoom(string(cmd.content))
-			roomID := uuid.New()
-			s.rooms[roomID] = room
-			s.store.SaveRoom(&dm.Room{
-				ID:   roomID,
-				Name: string(cmd.content),
-			})
+			client, exists := s.clients[cmd.clientID]
+			if exists {
+				room := NewRoom(string(cmd.content))
+				roomID := uuid.New()
+				s.rooms[roomID] = room
+				s.store.SaveRoom(&dm.Room{
+					ID:   roomID,
+					Name: string(cmd.content),
+				})
+				messages, err := s.store.ListMessagesByRoom(cmd.roomID, 20)
+				if err != nil {
+					fmt.Printf("error retrieving messages for room %v: %v\n", cmd.roomID, err)
+					continue
+				}
+				for _, msgData := range messages {
+					msg := &protocol.Message{
+						Header: protocol.Header{
+							Type:   protocol.Chat,
+							Length: uint32(len(msgData.Content)),
+						},
+						Content: []byte(msgData.Content),
+					}
+					client.outgoing <- msg
+				}
+			}
 		case joinRoomCmd:
 			room := s.rooms[cmd.roomID]
 			client, exists := s.clients[cmd.clientID]
 			if exists {
 				client.roomID = cmd.roomID
 				room.AddClient(client)
+				messages, err := s.store.ListMessagesByRoom(cmd.roomID, 20)
+				if err != nil {
+					fmt.Printf("error retrieving messages for room %v: %v\n", cmd.roomID, err)
+					continue
+				}
+				for _, msgData := range messages {
+					msg := &protocol.Message{
+						Header: protocol.Header{
+							Type:   protocol.Chat,
+							Length: uint32(len(msgData.Content)),
+						},
+						Content: []byte(msgData.Content),
+					}
+					client.outgoing <- msg
+				}
 			}
 		case leaveRoomCmd:
 			room := s.rooms[cmd.roomID]
@@ -174,12 +207,17 @@ func (s *Server) populateRooms() error {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	user, err := s.getOrCreateUser(conn.RemoteAddr().String())
-	if err != nil {
+	// TODO: add auth to get user info
+	user := &dm.User{
+		ID:       uuid.New(),
+		Nickname: "guest",
+	}
+	if err := s.store.SaveUser(user); err != nil {
 		fmt.Printf("error getting or creating user: %v\n", err)
 		conn.Close()
 		return
 	}
+
 	fmt.Printf("User connected: %s (Nickname: %s)\n", user.ID, user.Nickname)
 
 	client := &Client{
@@ -203,29 +241,6 @@ func (s *Server) handleConnection(conn net.Conn) {
 	s.mu.Unlock()
 	client.conn.Close()
 	fmt.Println("connection closed from:", conn.RemoteAddr())
-}
-
-func (s *Server) getOrCreateUser(remoteAddr string) (*dm.User, error) {
-	user, err := s.store.GetUserByRemoteAddr(remoteAddr)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving user by remote address: %w", err)
-	}
-
-	if user != nil {
-		return user, nil
-	}
-
-	// new user
-	newUser := &dm.User{
-		ID:         uuid.New(),
-		Nickname:   "guest",
-		RemoteAddr: remoteAddr,
-	}
-	if err := s.store.SaveUser(newUser); err != nil {
-		return nil, fmt.Errorf("error saving new user: %w", err)
-	}
-
-	return newUser, nil
 }
 
 type command struct {
