@@ -3,13 +3,14 @@ package protocol
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 )
 
-func Encode(msg *Message) ([]byte, error) {
+func EncodeMsg(msg *Message) ([]byte, error) {
 	if len(msg.Content) > MaxPayloadSize {
 		return nil, errors.New("message content exceeds maximum payload size")
 	}
@@ -39,7 +40,7 @@ func Encode(msg *Message) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func Decode(conn net.Conn) (*Message, error) {
+func DecodeMsg(conn net.Conn) (*Message, error) {
 	header := &Header{}
 
 	if err := binary.Read(conn, binary.BigEndian, &header.Type); err != nil {
@@ -66,4 +67,26 @@ func Decode(conn net.Conn) (*Message, error) {
 		Header:  *header,
 		Content: content,
 	}, nil
+}
+
+func EncodeCustom(data any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode rooms: %v", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func DecodeCustom(data []byte, target any) error {
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+
+	if err := dec.Decode(target); err != nil {
+		return fmt.Errorf("failed to decode: %w", err)
+	}
+
+	return nil
 }

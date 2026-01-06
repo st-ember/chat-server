@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  client:
+    # Build the client image using the Dockerfile in the 'client' directory.
+    build:
+      context: .
+      dockerfile: client/deployment/Dockerfile
+    # Mount the local 'client' source code into the container at /app.
+    # This enables live reloading. When you change a .go file on your machine,
+    # 'air' inside the container will see the change and restart the client.
+    volumes:
+      - ./client:/app
+    # Use the host's network. This is the simplest way for the clients
+    # in the container to connect to your server running on localhost:8081.
+    network_mode: "host"

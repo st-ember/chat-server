@@ -1,5 +1,7 @@
 package protocol
 
+import "github.com/google/uuid"
+
 type Message struct {
 	Header  Header
 	Content []byte
@@ -15,9 +17,17 @@ type MessageType int8
 const (
 	JoinRoom MessageType = iota + 1
 	CreateRoom
-	Rooms
+	ListRooms
 	Leave
 	Chat
+	Identify
+	Info
+	Error
 )
+
+type Room struct {
+	Name string
+	ID   uuid.UUID
+}
 
 const MaxPayloadSize = 1024

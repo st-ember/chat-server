@@ -22,7 +22,7 @@ func (c *Client) readLoop() {
 	defer close(c.outgoing)
 
 	for {
-		msg, err := protocol.Decode(c.conn)
+		msg, err := protocol.DecodeMsg(c.conn)
 		if err != nil {
 			// make exception for EOF errors (graceful disconnects)
 			if err != io.EOF {
@@ -44,7 +44,7 @@ func (c *Client) readLoop() {
 			cmd.cmdType = chatToRoomCmd
 			cmd.roomID = c.roomID
 			cmd.content = msg.Content
-		case protocol.Rooms:
+		case protocol.ListRooms:
 			cmd.cmdType = listRooms
 		case protocol.JoinRoom:
 			cmd.cmdType = joinRoomCmd
@@ -65,7 +65,7 @@ func (c *Client) readLoop() {
 
 func (c *Client) writeLoop() {
 	for msg := range c.outgoing {
-		encodedMesg, err := protocol.Encode(msg)
+		encodedMesg, err := protocol.EncodeMsg(msg)
 		if err != nil {
 			fmt.Printf("error encoding message: %v", err)
 			continue
